@@ -16,6 +16,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include "ftp_server.h"
+#include "util.h"
 
 
 struct ftp_cmd cmds[] = {
@@ -25,6 +26,8 @@ struct ftp_cmd cmds[] = {
 	{"PORT", handle_cmd_request_port},
 	{"RETR", handle_cmd_request_retr},
 	{"STOR", handle_cmd_request_stor},
+	{"LIST", handle_cmd_request_list},
+	{"SIZE", handle_cmd_request_size},
 };
 
 
@@ -78,6 +81,45 @@ int handle_cmd_request_stor(struct client * client, char * cmd, char * response)
 		return 0;
 	}
 	sprintf(response, "226 finish transferred file.\r\n");
+	return 0;
+}
+
+int handle_cmd_request_list(struct client * client, char * cmd, char * response)
+{
+	char *pucBuff = malloc(10240);
+	memset(pucBuff, 0, 10240);
+	if (-1 == list_dir(client->pwd, pucBuff)){
+		sprintf(response, "450 Invalid file.\r\n");
+		return 0;
+	}
+	sprintf(response, "200 list file down.\r\n");
+	return 0;
+}
+
+int handle_cmd_request_size(struct client * client, char * cmd, char * response)
+{
+	char cmdName[64] = {0};
+	char file_name[256] = {0};
+	char full_path_name[256] = {0};
+	int size = 0;
+
+	if (0 > get_cmd_detail_1(cmd, cmdName, file_name))
+	{
+		sprintf(response, "500 failed to parse command.\r\n");
+		return 0;
+	}
+
+	printf("cmd name is %s, file_name is %s", cmdName, file_name);
+
+	sprintf(full_path_name, "%s/%s", client->pwd, file_name);
+
+	size = get_file_size(full_path_name);
+	if (0 > size){
+		sprintf(response, "500 failed to get file size\r\n");
+		return 0;
+	}
+
+	sprintf(response, "213 %ubytes\r\n", size);
 	return 0;
 }
 
@@ -201,7 +243,7 @@ int push_file(struct client * client, char * cmd){
 	char file_basename[128] = {0};
 	strncpy(file_basename, cmd, end_index);
 
-	sprintf(file_name ,"%s/%s", FTP_ROOT_DIR, file_basename);
+	sprintf(file_name ,"%s/%s", client->pwd, file_basename);
 
 	char * str_ctrl_notice_msg = "150 opened data channel connection.\r\n";
 	send(client->fd, str_ctrl_notice_msg, strlen(str_ctrl_notice_msg) + 1, 0);
@@ -215,13 +257,23 @@ int push_file(struct client * client, char * cmd){
 	}
 
 	memset(buff,0,10240);
-	size_t read_bytes = fread(buff, 1, 10240, f);
+	size_t read_bytes = fread(buff, 1024, 10, f);
+	size_t block_size = 0;
 	while (read_bytes != 0){
-		send(client->data_conn.fd, buff, read_bytes, 0);
-
-		usleep(20);
+		send(client->data_conn.fd, buff, read_bytes * 1024, 0);
+		block_size += read_bytes;
+		usleep(10);
 		//memset(buff,0,10240);
-		read_bytes = fread(buff, 1, 10240, f);
+		read_bytes = fread(buff, 1024, 10, f);
+	}
+
+	fseek(f, block_size*1024, SEEK_SET);
+	read_bytes = fread(buff, 1, 1024, f);
+
+	printf("The file total size is %d bytes.", block_size*1024+read_bytes);
+
+	if (read_bytes != 0){
+		send(client->data_conn.fd, buff, read_bytes, 0);
 	}
 
 	free(buff);
@@ -267,7 +319,7 @@ int store_file(struct client * client, char * cmd){
 	char file_basename[128] = {0};
 	strncpy(file_basename, cmd + end_index + 1, last_index - end_index);
 
-	sprintf(file_name ,"%s/%s", FTP_ROOT_DIR, file_basename);
+	sprintf(file_name ,"%s/%s", client->pwd, file_basename);
 
 	char * str_ctrl_notice_msg = "150 opened data channel connection.\r\n";
 	send(client->fd, str_ctrl_notice_msg, strlen(str_ctrl_notice_msg) + 1, 0);
@@ -284,10 +336,13 @@ int store_file(struct client * client, char * cmd){
 	size_t read_bytes = recv(client->data_conn.fd, buff, 10240, 0);
 	while (read_bytes != 0){
 		//send(client->data_conn.fd, buff, read_bytes, 0);
-		fwrite(buff, 1, read_bytes, f);
+		fwrite(buff, 1024, read_bytes/1024, f);
+		if (read_bytes%1024){
+			fwrite(buff + (read_bytes/1024)*1024, 1, read_bytes%1024, f);
+		}
 		fflush(f);
 
-		usleep(20);
+		usleep(10);
 		//memset(buff,0,10240);
 		read_bytes = recv(client->data_conn.fd, buff, 10240, 0);
 	}
@@ -313,7 +368,7 @@ int handle_request(struct client * client, char * request, char * response)
 		{
 			if (NULL == cmds[loop].handle_cbk)
 			{
-				sprintf(response, "500 unimplemented command");
+				sprintf(response, "500 unimplemented command\r\n");
 				return 0;
 			}
 			if (0 != cmds[loop].handle_cbk(client, request, response))
@@ -325,7 +380,7 @@ int handle_request(struct client * client, char * request, char * response)
 		}
 	}
 
-	sprintf(response, "500 unimplemented command");
+	sprintf(response, "500 unimplemented command\r\n");
 	return 0;
 
 }

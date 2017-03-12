@@ -8,6 +8,8 @@
 #ifndef FTP_SERVER_H_
 #define FTP_SERVER_H_
 
+#define _FILE_OFFSET_BITS 64
+
 #define FTP_PATH_NAME_MAX_LEN (256)
 
 enum FTP_DATA_CHANNEL_STAT{
@@ -27,6 +29,8 @@ struct server{
 	int sockfd;
 	char * root_path;
 	char * bind_ip;
+	char * welcome_msg;
+	char * version;
 };
 
 struct response{
@@ -48,6 +52,7 @@ struct client{
 	int fd;
 	pthread_t tid;
 	struct data_connection data_conn;
+	char pwd[FTP_PATH_NAME_MAX_LEN];
 };
 
 typedef int (*handle_func)(struct client* client, char * cmd, char * response);
@@ -56,6 +61,9 @@ struct ftp_cmd{
 	char * cmd;
 	handle_func handle_cbk;
 };
+
+extern struct server server_config;
+
 int handle_request(struct client * client, char * request, char * response);
 
 
@@ -65,6 +73,11 @@ int create_port_mode_data_channel(struct client * client,  struct sockaddr_in * 
 
 int push_file(struct client * client, char * cmd);
 
+int store_file(struct client * client, char * cmd);
+
+int get_file_size(char *path);
+
+int list_dir(char * path, char * output);
 
 int handle_cmd_request_user(struct client * client, char * cmd, char * response);
 
@@ -77,4 +90,8 @@ int handle_cmd_request_port(struct client * client, char * cmd, char * response)
 int handle_cmd_request_retr(struct client * client, char * cmd, char * response);
 
 int handle_cmd_request_stor(struct client * client, char * cmd, char * response);
+
+int handle_cmd_request_list(struct client * client, char * cmd, char * response);
+
+int handle_cmd_request_size(struct client * client, char * cmd, char * response);
 #endif /* FTP_SERVER_H_ */
