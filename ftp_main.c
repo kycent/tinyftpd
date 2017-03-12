@@ -128,7 +128,7 @@ int main(int argc, char *argv[]){
 	 * */
 	int op = 0;
 	char * cli_arg;
-	while ((op = getopt(argc, argv, "prm:")) != -1){
+	while ((op = getopt(argc, argv, "p:rm")) != -1){
 		switch(op){
 			case 'p':
 			{
@@ -160,7 +160,6 @@ int main(int argc, char *argv[]){
 
 	printf("server config:\nport:%d\nroot_path:%s\nbacklog:%d\nversion:%s\nbind_ip:%s\n",
 		server_config.port, server_config.root_path, server_config.backlog, server_config.version, server_config.bind_ip);
-
 	printf("start ftp service...");
 	serve_forever(&server_config);
 }
