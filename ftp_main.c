@@ -128,7 +128,7 @@ int main(int argc, char *argv[]){
 	 * */
 	int op = 0;
 	char * cli_arg;
-	while ((op = getopt(argc, argv, "p:rm")) != -1){
+	while ((op = getopt(argc, argv, "p:r:m:")) != -1){
 		switch(op){
 			case 'p':
 			{
