@@ -36,7 +36,7 @@ void * client_thread_main(void * pClient){
 
 		printf("Recevied msg is: %s", buff);
 		if (0 == strncmp(buff, "QUIT", strlen("QUIT"))){
-			printf("close connection. [fd=%d,tid:%d]", client_info->fd, (int)tid);
+			printf("close connection. [fd=%d]", client_info->fd);
 			goto CLOSE;
 		}
 
@@ -67,7 +67,7 @@ int serve_forever(struct server * pSrv)
 	memset(&addr, 0, sizeof(addr));
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(pSrv->port);
-	addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+	addr.sin_addr.s_addr = inet_addr(pSrv->bind_ip);
 
 	if (-1 == bind(fd, (struct sockaddr *)&addr, sizeof(addr))){
 		perror("Failed to bind socket.");
@@ -158,8 +158,8 @@ int main(int argc, char *argv[]){
 		}
 	}
 
-	printf("server config:\nport:%d\nroot_path:%s\nbacklog:%d\nversion:%s\nbind_ip:%s\n",
+	printf("server config:\nport:%d\nroot_path:%s\nbacklog:%d\nversion:%s\nbind_ip:%s\r\n",
 		server_config.port, server_config.root_path, server_config.backlog, server_config.version, server_config.bind_ip);
-	printf("start ftp service...");
+	printf("start ftp service...\r\n");
 	serve_forever(&server_config);
 }

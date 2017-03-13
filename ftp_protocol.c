@@ -60,7 +60,7 @@ int handle_cmd_request_port(struct client * client, char * cmd, char * response)
 		sprintf(response, "451 Internal error on server\r\n");
 		return 0;
 	}
-	sprintf(response, "220 successfully\r\n");
+	sprintf(response, "200 port command successfully\r\n");
 	return 0;
 }
 
@@ -109,7 +109,7 @@ int handle_cmd_request_size(struct client * client, char * cmd, char * response)
 		return 0;
 	}
 
-	printf("cmd name is %s, file_name is %s", cmdName, file_name);
+	printf("cmd name is %s, file_name is %s\r\n", cmdName, file_name);
 
 	sprintf(full_path_name, "%s/%s", client->pwd, file_name);
 
@@ -181,7 +181,7 @@ int parse_port_cmd(char * cmd, struct sockaddr_in * client_addr)
 
 	strncpy(strIp, cmd, seperator);
 
-	printf("parsed client address is %s:%d", strIp, port);
+	printf("parsed client address is %s:%d\r\n", strIp, port);
 
 	memset(client_addr, 0, sizeof(struct sockaddr_in));
 	client_addr->sin_family = AF_INET;
@@ -262,7 +262,7 @@ int push_file(struct client * client, char * cmd){
 	while (read_bytes != 0){
 		send(client->data_conn.fd, buff, read_bytes * 1024, 0);
 		block_size += read_bytes;
-		usleep(10);
+		usleep(1);
 		//memset(buff,0,10240);
 		read_bytes = fread(buff, 1024, 10, f);
 	}
@@ -270,7 +270,7 @@ int push_file(struct client * client, char * cmd){
 	fseek(f, block_size*1024, SEEK_SET);
 	read_bytes = fread(buff, 1, 1024, f);
 
-	printf("The file total size is %d bytes.", block_size*1024+read_bytes);
+	printf("The file total size is %d bytes.\r\n", block_size*1024+read_bytes);
 
 	if (read_bytes != 0){
 		send(client->data_conn.fd, buff, read_bytes, 0);
@@ -342,7 +342,7 @@ int store_file(struct client * client, char * cmd){
 		}
 		fflush(f);
 
-		usleep(10);
+		usleep(1);
 		//memset(buff,0,10240);
 		read_bytes = recv(client->data_conn.fd, buff, 10240, 0);
 	}
@@ -368,19 +368,19 @@ int handle_request(struct client * client, char * request, char * response)
 		{
 			if (NULL == cmds[loop].handle_cbk)
 			{
-				sprintf(response, "500 unimplemented command\r\n");
+				sprintf(response, "500 unimplemented command:%s\r\n", request);
 				return 0;
 			}
 			if (0 != cmds[loop].handle_cbk(client, request, response))
 			{
-				printf("failed to run cmd %s", request);
+				printf("failed to run cmd: %s", request);
 				return 0;
 			}
 			return 0;
 		}
 	}
 
-	sprintf(response, "500 unimplemented command\r\n");
+	sprintf(response, "500 unimplemented command:%s\r\n", request);
 	return 0;
 
 }
